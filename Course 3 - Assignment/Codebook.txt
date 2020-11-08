@@ -1,0 +1,9 @@
+This code book is for the final output "summary_act_subject_data".
+
+Variables for "summary_act_subject_data":
+
+1) activity_id = this is the values from the files "y_test.txt" and "y_train.text"
+2) activity = this is the values from the file "activity_labels" when its first column is matched with activity_id
+3) subject_id = this is the data based on the files "subject_test.txt" and "subject_train.txt"
+
+The other variables are based on the different activites on the file "features.txt"
