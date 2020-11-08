@@ -123,3 +123,5 @@ head(summary_act_subject_data[,c(1,2,3,4,5)])
 print(paste("unique categories: ", nrow(unique(summary_act_subject_data[,c(1,2,3)]))))
 print(paste("total rows: ", nrow(summary_act_subject_data)))
 
+# output content
+write.table(summary_act_subject_data, file = "Course 3 - Assignment/output_step5.txt", row.names = FALSE)
