@@ -1,0 +1,156 @@
+---
+title: "Course Project: Predicting Exercise Performance: Attempt 1"
+author: "Allen (github: alc00)"
+date: "11/27/2020"
+output: html_document
+---
+
+# Introduction
+We will be creating a predictive model based on the performance metrics of exercise devices from the data, specified by the course requirements, and classify them into exercise types. In short, we will be taking movement data and classify them into the type of exercise.
+
+# Loading the Data
+```{r}
+library(caret)
+train <- read.csv("pml-training.csv", header =TRUE)
+test <- read.csv("pml-testing.csv", header =TRUE)
+```
+
+# Data Cleaning
+
+## Check for Irrelavant Columns
+```{r, results="hide"}
+str(train)
+length(names(train))
+```
+## Remove Irrelevant Columns
+Since we will be utilizing activity/movement data to classify the records into specific exercises. Certain data, such as the row number, timestamp, user, etc. seems irrelevant to the model. We will be removing them in order to reduce noise and hopefully improve the predictive capabilities of our model.
+
+We removed the first 7 columns.
+
+```{r, results = "hide"}
+train2 <- train[,8:160]
+str(train2)
+```
+## Convert Character Columns to Numeric
+We will be converting some numeric columns that were incorrect tagged as characters.
+
+### Column Checking
+Let's check each character column first.
+```{r, results = "hide"}
+train2_char <- train2[,sapply(train2, class) == 'character']
+
+str(train2_char)
+train2_char_test1 <- sapply(train2_char, max)
+train2_char_test2 <- sapply(train2_char, min)
+
+train2_char_test1
+train2_char_test2
+```
+
+### Column Checking 2
+Based on manually looking into each column without any numeric or blank value based on the max and min functions. Let's check if they actually contain any numbers so we can determine if they should be handled separately or removed entirely.
+
+Columns that will be manually checked:
+kurtosis_picth_belt
+kurtosis_yaw_belt
+skewness_yaw_belt
+kurtosis_yaw_dumbbell
+skewness_yaw_dumbbell
+kurtosis_yaw_forearm
+skewness_yaw_forearm
+
+```{r, results = "hide"}
+check_list <- c("kurtosis_picth_belt",
+"kurtosis_yaw_belt",
+"skewness_yaw_belt",
+"kurtosis_yaw_dumbbell",
+"skewness_yaw_dumbbell",
+"kurtosis_yaw_forearm",
+"skewness_yaw_forearm")
+
+unique_values_check <- lapply(train2[,check_list], unique)
+unique_values_check
+```
+Based on these results, we will only be retaining the column "kurtosis_picth_belt" and removing the rest. We have confirmed that there is no predictor that is formatted as a character.
+
+### Filtering of Columns and Converting to Numeric
+```{r, results = "hide"}
+list_columns_removal <- c("kurtosis_yaw_belt",
+"skewness_yaw_belt",
+"kurtosis_yaw_dumbbell",
+"skewness_yaw_dumbbell",
+"kurtosis_yaw_forearm",
+"skewness_yaw_forearm")
+
+train3 <- train2[, !(names(train2) %in% list_columns_removal)]
+train4_predictor <- data.frame(lapply(train3[,which(!(names(train3) == "classe"))], as.numeric))
+classe <- train3[,"classe"]
+train4 <- cbind(classe, train4_predictor)
+
+```
+## Final Data Cleaning Checking
+
+Let's check if there are any columns with any issues (i.e. column only has 1 unique value)
+```{r}
+unique_cnt_per_col <- sapply(lapply(train4, unique), length)
+which(!unique_cnt_per_col[]>2)
+
+unique(train4$amplitude_yaw_belt)
+unique(train4$amplitude_yaw_dumbbell)
+unique(train4$amplitude_yaw_forearm)
+```
+We can see that these 3 columns have only 2 values NA or 0. As this data is not useful, we will be removing these columns.
+
+## Final Cleaning - Removing Unneccessary Columns and Changing NA to 0
+```{r, results = "hide"}
+list_column_removal2 <- c("amplitude_yaw_belt","amplitude_yaw_dumbbell", "amplitude_yaw_forearm")
+train5 <- train4[,which(!names(train4) %in% list_column_removal2)]
+train5[is.na(train5)] <- 0
+train6 <- data.frame(train5)
+```
+
+## PCA - Data Reduction
+Due to the limitations on computing resources, we would need to reduce the 152 predictor variables using Principal Components Analysis.
+
+```{r}
+PreProc <- preProcess(train6[,which(!(names(train6) == "classe"))], method="pca", thresh="0.95")
+trainPC <- predict(PreProc, train6[,which(!(names(train6) == "classe"))])
+
+length(trainPC)
+
+Train7 <- cbind(classe = factor(train6$classe), trainPC)
+```
+We have condensed our 143 predictors into 58 principal components.
+
+# Model Creation and Evaluation
+
+## Decision Tree Model
+
+### Creation
+```{r}
+set.seed(20201127)
+model_dt <- train(classe~., data=Train7, method="rpart")
+```
+
+### Implementation
+
+#### Test Data Prepartion
+```{r}
+test1 <- test[,which(names(test) %in% names(train6))]
+test2_predictors <- data.frame(lapply(test1[,which(!names(test1) %in% c("classe"))], as.numeric))
+test2_predictors[is.na(test2_predictors)] <- 0
+test2_predictors_clean <- data.frame(test2_predictors)
+```
+
+#### Test Data PCA
+```{r}
+testPC <- predict(PreProc, test2_predictors_clean)
+```
+
+#### Classify
+```{r}
+model_dt_result <- predict(model_dt, testPC)
+print(model_dt_result)
+```
+### Evaluation
+Based on the Quiz results, our model's accuracy is 35%. Benchmark: Random Guessing = 20%
